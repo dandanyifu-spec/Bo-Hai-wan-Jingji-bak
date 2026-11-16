@@ -827,4 +827,25 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
 })();
 </script>
 <!-- /bha-honours -->
+
+<!-- bha-sign : 页脚署名 -->
+<script id="bha-sign-js">
+(function(){
+  var done = false;
+  function add(){
+    if (done) return;
+    var bar = document.getElementById('bha-creditbar');
+    if (!bar || bar.querySelector('.bha-sign')) return;
+    var s = document.createElement('span');
+    s.className = 'bha-sign';
+    s.textContent = '　·　Dandanyifu 的网站';
+    s.style.opacity = '.75';
+    bar.appendChild(s);
+    done = true;
+  }
+  setInterval(add, 800);
+  add();
+})();
+</script>
+<!-- /bha-sign -->
 </body></html>
