@@ -468,6 +468,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
 </script>
 <!-- /bha-card-maker -->
 
+
 <!-- bha-honours : 荣誉室（竖直时间轴） -->
 <style id="bha-honours-css">
 .bha-hon-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:0 0 20px}
@@ -699,7 +700,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
       const dot = document.createElement('span'); dot.className = 'dot';
       const chip = document.createElement('div');
       chip.className = 'date';
-      chip.innerHTML = d.date.replace(/-/g, '.') + '<small>第 ' + (d.week || 1) + ' 周 · ' + dayLabel(d.date) + '</small>';
+      chip.innerHTML = d.date.replace(/-/g, '.') + (d.week ? '<small>第 ' + d.week + ' 周 · ' + dayLabel(d.date) + '</small>' : '<small>' + dayLabel(d.date) + '</small>');
       day.appendChild(dot); day.appendChild(chip);
       tl.appendChild(day);
 
