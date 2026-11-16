@@ -207,214 +207,6 @@ footer{padding-right:calc(max(4vw,24px) + 104px)!important}
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){})})}
 </script>
 
-<!-- bha-card-maker : 球员详情页「生成卡片」 -->
-<style id="bha-card-maker-css">
-.bha-card-btn{margin:18px 0 6px;background:#ff6841;color:#111;border:2px solid #111;border-radius:0;
-  padding:14px 18px;font-weight:900;font-size:15px;letter-spacing:.5px;box-shadow:4px 4px #111;
-  display:flex;align-items:center;gap:10px;justify-content:center;width:100%;cursor:pointer;font-family:inherit}
-.bha-card-btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px #c5fa39}
-.bha-card-btn:focus-visible{outline:3px solid #111;outline-offset:4px}
-.bha-card-tip{font-size:11px;color:#6d795c;margin:0 0 10px;text-align:center}
-</style>
-<script id="bha-card-maker">
-(function(){
-  if (window.__BHA_CARD__) return;
-  window.__BHA_CARD__ = true;
-
-  function seeded(num){
-    let h = 2166136261;
-    for (const ch of String(num)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
-    let a = h >>> 0;
-    return function(){
-      a = (a + 0x6D2B79F5) >>> 0;
-      let t = a;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-  function fakeStats(num){
-    const r = seeded(num);
-    const wild = r() > 0.88;
-    const km = wild ? (18 + r() * 26) : (8.6 + r() * 4.0);
-    const rating = 6.1 + r() * 3.2;
-    return { km: km.toFixed(1), rating: rating.toFixed(1) };
-  }
-
-  // 全队进球最多的人 = 金靴
-  function topGoals(){
-    try{
-      const el = document.getElementById('club-initial-data');
-      if (!el) return Infinity;
-      const data = JSON.parse(el.textContent);
-      const map = {};
-      for (const m of (data.matches || [])) {
-        for (const e of (m.entries || [])) {
-          map[e.id] = (map[e.id] || 0) + (e.goals || 0);
-        }
-      }
-      return Math.max(0, ...Object.values(map));
-    } catch(e){ return Infinity; }
-  }
-
-  const GREEN='#c5fa39', INK='#111210', ORANGE='#ff6841', PAPER='#f2f0e2', GOLD='#f6c453';
-
-  function draw(canvas, p){
-    const x = canvas.getContext('2d'), W = 1080, H = 1350;
-    const bg = p.gold ? GOLD : GREEN;
-    x.clearRect(0,0,W,H);
-    x.fillStyle = bg; x.fillRect(0,0,W,H);
-
-    x.save(); x.translate(W-260,-60); x.rotate(-0.45);
-    for (let i=0;i<16;i++){ x.fillStyle = i%2 ? 'rgba(17,18,16,.09)' : 'rgba(0,0,0,0)'; x.fillRect(i*24,-40,12,620); }
-    x.restore();
-
-    x.strokeStyle = INK; x.lineWidth = 6; x.strokeRect(48,48,W-96,H-96);
-
-    x.save();
-    x.font = '900 520px "Arial Black", Arial, sans-serif';
-    x.textAlign = 'right';
-    x.strokeStyle = 'rgba(17,18,16,.18)'; x.lineWidth = 3;
-    x.strokeText(p.num, W-58, 640);
-    x.restore();
-
-    if (p.crest && p.crest.complete) x.drawImage(p.crest, 80, 80, 86, 94);
-    x.fillStyle = INK;
-    x.font = '900 32px "Arial Black", Arial, sans-serif'; x.fillText('BOHAI BAY', 186, 122);
-    x.font = '700 20px "Microsoft YaHei", "PingFang SC", sans-serif'; x.fillText('渤海湾竞技 · 2026', 186, 156);
-
-    if (p.gold){
-      x.save(); x.translate(W-472,146); x.rotate(-0.05);
-      x.fillStyle = INK; x.fillRect(0,-40,352,62);
-      x.fillStyle = GOLD; x.font = '900 26px "Arial Black", Arial, sans-serif';
-      x.fillText('★ 金靴 GOLDEN BOOT', 18, 2);
-      x.restore();
-    }
-
-    x.fillStyle = INK;
-    x.font = '900 128px "Microsoft YaHei", "PingFang SC", "Arial Black", sans-serif';
-    let fs = 128;
-    while (x.measureText(p.name).width > W - 170 && fs > 58) {
-      fs -= 6;
-      x.font = '900 ' + fs + 'px "Microsoft YaHei", "PingFang SC", "Arial Black", sans-serif';
-    }
-    x.fillText(p.name, 80, 400);
-
-    x.font = '900 50px "Arial Black", Arial, sans-serif'; x.fillText('#'+p.num, 84, 472);
-    const w = x.measureText('#'+p.num).width;
-    x.font = '700 26px "Microsoft YaHei", "PingFang SC", sans-serif';
-    x.fillText(p.pos + ' · ' + p.team, 84+w+20, 469);
-
-    x.fillStyle = INK; x.fillRect(80,510,W-160,78);
-    x.fillStyle = bg;
-    x.font = '700 24px "Microsoft YaHei", "PingFang SC", sans-serif';
-    const bio = p.bio && p.bio.length > 30 ? p.bio.slice(0,30)+'…' : (p.bio || '');
-    x.fillText(bio, 102, 558);
-
-    const f = fakeStats(p.num);
-    const gpm = p.played ? (p.goals / p.played).toFixed(1) : '—';
-    const stats = [
-      ['出场', String(p.played)], ['进球', String(p.goals)], ['场均进球', gpm],
-      ['场均跑动', f.km + ' km'], ['场均评分', f.rating], ['胜场', String(p.wins)]
-    ];
-    const cols = 3, gap = 16, bx = 80, by = 630, bw = (W-160-gap*(cols-1))/cols, bh = 208;
-    stats.forEach(function(s, i){
-      const rw = Math.floor(i/cols), ci = i%cols;
-      const px = bx + ci*(bw+gap), py = by + rw*(bh+gap);
-      const hi = i === 1;
-      x.fillStyle = hi ? INK : PAPER; x.strokeStyle = INK; x.lineWidth = 5;
-      x.fillRect(px,py,bw,bh); x.strokeRect(px,py,bw,bh);
-      x.fillStyle = hi ? (p.gold ? GOLD : GREEN) : INK;
-      x.textAlign = 'center';
-      const t = String(s[1]);
-      x.font = t.length > 5 ? '900 54px "Arial Black", Arial, sans-serif' : '900 84px "Arial Black", Arial, sans-serif';
-      x.fillText(t, px+bw/2, py+128);
-      x.font = '700 22px "Microsoft YaHei", "PingFang SC", sans-serif';
-      x.fillText(s[0], px+bw/2, py+178);
-      x.textAlign = 'left';
-    });
-
-    x.fillStyle = INK; x.fillRect(0,H-210,W,210);
-    x.fillStyle = p.gold ? GOLD : GREEN;
-    x.font = '900 78px "Microsoft YaHei", "PingFang SC", "Arial Black", sans-serif';
-    x.fillText('不是第一 就是差', 76, H-108);
-    x.fillStyle = PAPER; x.font = '700 20px "Arial Black", Arial, sans-serif';
-    x.fillText('BAD TOUCH. GOOD TIMES.', 80, H-58);
-    x.textAlign = 'right'; x.fillStyle = ORANGE; x.font = '900 26px "Arial Black", Arial, sans-serif';
-    x.fillText('BHA', W-80, H-58);
-  }
-
-  function readProfile(){
-    const modal = document.querySelector('.overlay .modal');
-    if (!modal || !modal.querySelector('.profile-stats')) return null;
-    const eyebrow = (modal.querySelector('.eyebrow') || {}).textContent || '';
-    const m = eyebrow.match(/#\s*([^\s]+)/);
-    const nameRaw = (modal.querySelector('h2') || {}).textContent || '';
-    const name = nameRaw.replace(/[（(][^）)]*[）)]/g, '').trim() || nameRaw.trim();
-    const ps = modal.querySelectorAll('p');
-    const posLine = (ps[0] && ps[0].textContent) || '';
-    const bio = (ps[1] && ps[1].textContent) || '';
-    const boxes = modal.querySelectorAll('.profile-stats > div');
-    const val = (i) => (boxes[i] && boxes[i].querySelector('b') ? boxes[i].querySelector('b').textContent : '0');
-    const team = eyebrow.split('·')[0].trim();
-    return {
-      name: name.trim(),
-      num: m ? m[1] : (boxes.length ? '0' : '0'),
-      team: team || '',
-      pos: posLine.split('·')[0].trim(),
-      bio: bio.trim(),
-      played: parseInt(val(0), 10) || 0,
-      goals: parseInt(val(1), 10) || 0,
-      wins: parseInt(val(3), 10) || 0,
-    };
-  }
-
-  function makeCard(){
-    const p = readProfile();
-    if (!p) return;
-    const img = document.querySelector('img.crest-mark') || document.querySelector('img[class*=crest]');
-    const canvas = document.createElement('canvas');
-    canvas.width = 1080; canvas.height = 1350;
-
-    const drawIt = function(){
-      p.gold = p.goals > 0 && p.goals >= topGoals();
-      p.crest = img && img.complete ? img : null;
-      draw(canvas, p);
-      canvas.toBlob(function(blob){
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = '渤海湾竞技_' + (p.name || 'player') + '.png';
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
-      }, 'image/png');
-    };
-    if (img && !img.complete) { img.onload = drawIt; setTimeout(drawIt, 900); }
-    else drawIt();
-  }
-
-  function inject(){
-    const modal = document.querySelector('.overlay .modal');
-    if (!modal || !modal.querySelector('.profile-stats') || modal.querySelector('.bha-card-btn')) return;
-    const stats = modal.querySelector('.profile-stats');
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'bha-card-btn';
-    btn.textContent = '生成卡片 · 保存到相册';
-    btn.addEventListener('click', makeCard);
-    const tip = document.createElement('p');
-    tip.className = 'bha-card-tip';
-    tip.textContent = '1080×1350，发朋友圈正好';
-    stats.insertAdjacentElement('afterend', tip);
-    stats.insertAdjacentElement('afterend', btn);
-  }
-
-  new MutationObserver(inject).observe(document.body, { childList: true, subtree: true });
-  document.addEventListener('DOMContentLoaded', inject);
-  setInterval(inject, 800);
-})();
-</script>
-<!-- /bha-card-maker -->
 
 
 
@@ -780,4 +572,256 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
 })();
 </script>
 <!-- /bha-honours -->
+
+<!-- bha-card-maker : 生成卡片（定制卡 / 奖章 / 自动） -->
+<style id="bha-card-maker-css">
+.bha-card-wrap{margin:18px 0 6px}
+.bha-card-btn{background:#ff6841;color:#111;border:2px solid #111;border-radius:0;padding:13px 16px;
+  font-weight:900;font-size:15px;letter-spacing:.4px;box-shadow:4px 4px #111;display:flex;align-items:center;
+  gap:10px;justify-content:center;width:100%;cursor:pointer;font-family:inherit}
+.bha-card-btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px #c5fa39}
+.bha-card-btn:focus-visible{outline:3px solid #111;outline-offset:4px}
+.bha-card-btn.ghost{background:#1d2319;color:#e8ead9;border-color:#6f7a58;box-shadow:3px 3px #0a0b08}
+.bha-card-btn.ghost:hover{border-color:#c5fa39}
+.bha-card-tip{font-size:11px;color:#6d795c;margin:6px 0 0;text-align:center}
+</style>
+<script id="bha-card-maker">
+(function(){
+  if (window.__BHA_CARD__) return;
+  window.__BHA_CARD__ = true;
+
+  // 谁有定制卡（我做好放仓库的）
+  var CUSTOM = { '张博宇': './cards/zhangboyu.jpg' };
+
+  var GREEN='#c5fa39', INK='#111210', ORANGE='#ff6841', PAPER='#f2f0e2', GOLD='#f6c453';
+
+  function seeded(num){
+    var h = 2166136261;
+    for (var i=0;i<String(num).length;i++){ h ^= String(num).charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    var a = h >>> 0;
+    return function(){
+      a = (a + 0x6D2B79F5) >>> 0;
+      var t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function fakeStats(num){
+    var r = seeded(num);
+    var wild = r() > 0.88;
+    var km = wild ? (18 + r() * 26) : (8.6 + r() * 4.0);
+    var rating = 6.1 + r() * 3.2;
+    return { km: km.toFixed(1), rating: rating.toFixed(1) };
+  }
+  function topGoals(){
+    try{
+      var el = document.getElementById('club-initial-data');
+      if (!el) return Infinity;
+      var data = JSON.parse(el.textContent), map = {};
+      (data.matches || []).forEach(function(m){
+        (m.entries || []).forEach(function(e){ map[e.id] = (map[e.id] || 0) + (e.goals || 0); });
+      });
+      var top = 0;
+      Object.keys(map).forEach(function(k){ if (map[k] > top) top = map[k]; });
+      return top || Infinity;
+    } catch(e){ return Infinity; }
+  }
+
+  // 本周（数据里最新一次颁奖）的奖
+  function weekAwards(){
+    var el = document.getElementById('bha-honours-data');
+    if (!el) return {};
+    try{
+      var data = JSON.parse(el.textContent), maxDate = '';
+      data.forEach(function(w){ if (w.date > maxDate) maxDate = w.date; });
+      var map = {};
+      data.filter(function(w){ return w.date === maxDate; }).forEach(function(w){
+        (w.awards || []).forEach(function(a){ map[a.player] = a; });
+      });
+      return map;
+    } catch(e){ return {}; }
+  }
+
+  function download(url, name){
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  function autoCard(p){
+    var c = document.createElement('canvas');
+    c.width = 1080; c.height = 1350;
+    var img = document.querySelector('img.crest-mark') || document.querySelector('img[class*=crest]');
+    var paint = function(){
+      var x = c.getContext('2d'), W = 1080, H = 1350;
+      var gold = p.goals > 0 && p.goals >= topGoals();
+      var bg = gold ? GOLD : GREEN;
+      x.fillStyle = bg; x.fillRect(0,0,W,H);
+      x.strokeStyle = INK; x.lineWidth = 6; x.strokeRect(48,48,W-96,H-96);
+      if (img && img.complete) x.drawImage(img, 80, 80, 86, 94);
+      x.fillStyle = INK;
+      x.font = '900 32px "Arial Black", Arial, sans-serif'; x.fillText('BOHAI BAY', 186, 122);
+      x.font = '700 20px "Microsoft YaHei", "PingFang SC", sans-serif'; x.fillText('渤海湾竞技 · 2026', 186, 156);
+      if (gold){
+        x.fillStyle = INK; x.fillRect(W-472,106,352,62);
+        x.fillStyle = GOLD; x.font = '900 26px "Arial Black", Arial, sans-serif';
+        x.fillText('★ 金靴 GOLDEN BOOT', W-454, 148);
+      }
+      var fs = 128;
+      x.font = '900 ' + fs + 'px "Microsoft YaHei", "PingFang SC", "Arial Black", sans-serif';
+      while (x.measureText(p.name).width > W - 170 && fs > 58) {
+        fs -= 6;
+        x.font = '900 ' + fs + 'px "Microsoft YaHei", "PingFang SC", "Arial Black", sans-serif';
+      }
+      x.fillText(p.name, 80, 400);
+      x.font = '900 50px "Arial Black", Arial, sans-serif'; x.fillText('#'+p.num, 84, 472);
+      var w = x.measureText('#'+p.num).width;
+      x.font = '700 26px "Microsoft YaHei", "PingFang SC", sans-serif';
+      x.fillText(p.pos + ' · ' + p.team, 84+w+20, 469);
+      x.fillStyle = INK; x.fillRect(80,510,W-160,78);
+      x.fillStyle = bg; x.font = '700 24px "Microsoft YaHei", "PingFang SC", sans-serif';
+      x.fillText((p.bio || '').slice(0,30), 102, 558);
+
+      var f = fakeStats(p.num);
+      var gpm = p.played ? (p.goals / p.played).toFixed(1) : '—';
+      var stats = [['出场', String(p.played)], ['进球', String(p.goals)], ['场均进球', gpm],
+                   ['场均跑动', f.km + ' km'], ['场均评分', f.rating], ['胜场', String(p.wins)]];
+      var cols = 3, gap = 16, bx = 80, by = 630, bw = (W-160-gap*(cols-1))/cols, bh = 208;
+      stats.forEach(function(s, i){
+        var rw = Math.floor(i/cols), ci = i%cols;
+        var px = bx + ci*(bw+gap), py = by + rw*(bh+gap), hi = (i===1);
+        x.fillStyle = hi ? INK : PAPER; x.strokeStyle = INK; x.lineWidth = 5;
+        x.fillRect(px,py,bw,bh); x.strokeRect(px,py,bw,bh);
+        x.fillStyle = hi ? (gold ? GOLD : GREEN) : INK;
+        x.textAlign = 'center';
+        var t = String(s[1]);
+        x.font = t.length > 5 ? '900 54px "Arial Black", Arial, sans-serif' : '900 84px "Arial Black", Arial, sans-serif';
+        x.fillText(t, px+bw/2, py+128);
+        x.font = '700 22px "Microsoft YaHei", "PingFang SC", sans-serif';
+        x.fillText(s[0], px+bw/2, py+178);
+        x.textAlign = 'left';
+      });
+      x.fillStyle = INK; x.fillRect(0,H-210,W,210);
+      x.fillStyle = gold ? GOLD : GREEN;
+      x.font = '900 78px "Microsoft YaHei", "PingFang SC", "Arial Black", sans-serif';
+      x.fillText('不是第一 就是差', 76, H-108);
+      x.fillStyle = PAPER; x.font = '700 20px "Arial Black", Arial, sans-serif';
+      x.fillText('BAD TOUCH. GOOD TIMES.', 80, H-58);
+      x.textAlign = 'right'; x.fillStyle = ORANGE; x.font = '900 26px "Arial Black", Arial, sans-serif';
+      x.fillText('BHA', W-80, H-58);
+      c.toBlob(function(blob){
+        download(URL.createObjectURL(blob), '渤海湾竞技_' + p.name + '.png');
+      }, 'image/png');
+    };
+    if (img && !img.complete) { img.onload = paint; setTimeout(paint, 900); } else paint();
+  }
+
+  function medalCard(p, award){
+    var c = document.createElement('canvas');
+    c.width = 600; c.height = 600;
+    var x = c.getContext('2d');
+    var bg = award.name.indexOf('金靴') >= 0 ? GOLD
+           : award.name.indexOf('助攻') >= 0 ? GREEN : ORANGE;
+    x.fillStyle = bg; x.fillRect(0,0,600,600);
+    x.strokeStyle = INK; x.lineWidth = 8; x.strokeRect(22,22,556,556);
+    x.fillStyle = INK;
+    x.font = '700 22px "Microsoft YaHei", "PingFang SC", sans-serif';
+    x.fillText('BOHAI BAY · 第 46 周', 52, 78);
+    var fs = 96;
+    x.font = '900 ' + fs + 'px "Microsoft YaHei", "PingFang SC", "Arial Black", sans-serif';
+    while (x.measureText(award.name).width > 470 && fs > 46) {
+      fs -= 6;
+      x.font = '900 ' + fs + 'px "Microsoft YaHei", "PingFang SC", "Arial Black", sans-serif';
+    }
+    x.fillText(award.name, 52, 232);
+    x.font = '900 24px "Arial Black", Arial, sans-serif';
+    x.fillText(award.en || '', 54, 272);
+    x.fillStyle = INK; x.fillRect(52, 330, 496, 4);
+    x.font = '900 74px "Microsoft YaHei", "PingFang SC", sans-serif';
+    x.fillText(p.name, 52, 452);
+    x.font = '900 30px "Arial Black", Arial, sans-serif';
+    x.fillText('#' + p.num, 54, 500);
+    x.font = '900 22px "Microsoft YaHei", sans-serif';
+    x.fillText('★ WINNER · ' + p.team, 52, 548);
+    c.toBlob(function(blob){
+      download(URL.createObjectURL(blob), '渤海湾竞技_' + award.name + '_' + p.name + '.png');
+    }, 'image/png');
+  }
+
+  function readProfile(){
+    var modal = document.querySelector('.overlay .modal');
+    if (!modal || !modal.querySelector('.profile-stats')) return null;
+    var eyebrow = (modal.querySelector('.eyebrow') || {}).textContent || '';
+    var m = eyebrow.match(/#\s*([^\s]+)/);
+    var raw = (modal.querySelector('h2') || {}).textContent || '';
+    var name = raw.replace(/[（(][^）)]*[）)]/g, '').trim() || raw.trim();
+    var ps = modal.querySelectorAll('p');
+    var posLine = (ps[0] && ps[0].textContent) || '';
+    var boxes = modal.querySelectorAll('.profile-stats > div');
+    var val = function(i){ return boxes[i] && boxes[i].querySelector('b') ? boxes[i].querySelector('b').textContent : '0'; };
+    return {
+      name: name, num: m ? m[1] : '0',
+      team: (eyebrow.split('·')[0] || '').trim(),
+      pos: posLine.split('·')[0].trim(),
+      bio: ((ps[1] && ps[1].textContent) || '').trim(),
+      played: parseInt(val(0), 10) || 0,
+      goals: parseInt(val(1), 10) || 0,
+      wins: parseInt(val(3), 10) || 0,
+    };
+  }
+
+  function inject(){
+    var modal = document.querySelector('.overlay .modal');
+    if (!modal || !modal.querySelector('.profile-stats') || modal.querySelector('.bha-card-wrap')) return;
+    var p = readProfile();
+    if (!p) return;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'bha-card-wrap';
+
+    var custom = CUSTOM[p.name];
+    var award = weekAwards()[p.name];
+
+    // 只有确实有，才出现；没有就不出现
+    if (custom){
+      var b1 = document.createElement('button');
+      b1.type = 'button'; b1.className = 'bha-card-btn';
+      b1.textContent = '我的定制卡 · 保存到相册';
+      b1.addEventListener('click', function(){
+        download(custom, '渤海湾竞技_' + p.name + '_定制卡.jpg');
+      });
+      wrap.appendChild(b1);
+    }
+    if (award){
+      var b2 = document.createElement('button');
+      b2.type = 'button'; b2.className = 'bha-card-btn ghost';
+      b2.style.marginTop = '10px';
+      b2.textContent = '本周奖章 · ' + award.name;
+      b2.addEventListener('click', function(){ medalCard(p, award); });
+      wrap.appendChild(b2);
+    }
+    var b3 = document.createElement('button');
+    b3.type = 'button';
+    b3.className = custom || award ? 'bha-card-btn ghost' : 'bha-card-btn';
+    if (custom || award) b3.style.marginTop = '10px';
+    b3.textContent = (custom || award) ? '自动生成的数据卡' : '生成卡片 · 保存到相册';
+    b3.addEventListener('click', function(){ autoCard(p); });
+    wrap.appendChild(b3);
+
+    var tip = document.createElement('p');
+    tip.className = 'bha-card-tip';
+    tip.textContent = '1080×1350，发朋友圈正好';
+    wrap.appendChild(tip);
+
+    var stats = modal.querySelector('.profile-stats');
+    stats.insertAdjacentElement('afterend', wrap);
+  }
+
+  new MutationObserver(inject).observe(document.body, { childList: true, subtree: true });
+  document.addEventListener('DOMContentLoaded', inject);
+  setInterval(inject, 800);
+})();
+</script>
+<!-- /bha-card-maker -->
 </body></html>
